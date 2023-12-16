@@ -1,3 +1,5 @@
+use regex::Regex;
+
 use std::{
     env::var_os,
     fs::read_to_string,
@@ -69,10 +71,8 @@ pub fn update(feed: &Feed) {
 }
 
 fn extract_bilibili_link(description: &str) -> Option<String> {
-    let pattern = "www.bilibili.com/video/";
-    description.split_whitespace()
-        .find(|&s| s.contains(pattern))
-        .map(|s| s.to_string())
+    let regex = Regex::new(r"https://www\.bilibili\.com/video/BV[a-zA-Z0-9]+").unwrap();
+    regex.find(description).map(|m| m.as_str().to_string())
 }
 
 fn download(url: &str, feed: &Feed) -> Result<Child> {
