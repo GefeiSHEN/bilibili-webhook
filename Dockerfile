@@ -16,7 +16,7 @@ COPY --from=builder /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 COPY --from=builder /app/target/release/bilibili-webhook /usr/local/bin/
 COPY log.yml .
 
-RUN apk add -qq --no-cache libc6-compat sqlite-dev python3 python3-dev py3-pip ffmpeg gcc libc-dev && \
+RUN apk add -qq --no-cache libc6-compat sqlite-dev python3 python3-dev py3-pip ffmpeg gcc libc-dev libffi-dev && \
     python3 -m venv /app/venv && \
     source /app/venv/bin/activate && \
     pip3 install --no-cache-dir yutto --pre
