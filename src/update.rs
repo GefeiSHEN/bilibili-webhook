@@ -71,8 +71,12 @@ pub fn update(feed: &Feed) {
 }
 
 fn extract_bilibili_link(description: &str) -> Option<String> {
-    let regex = Regex::new(r"https://www\.bilibili\.com/video/BV[a-zA-Z0-9]+").unwrap();
-    regex.find(description).map(|m| m.as_str().to_string())
+    if description.contains("//转发自: @") {
+        None
+    } else {
+        let regex = Regex::new(r"https://www\.bilibili\.com/video/BV[a-zA-Z0-9]+").unwrap();
+        regex.find(description).map(|m| m.as_str().to_string())
+    }
 }
 
 fn download(url: &str, feed: &Feed) -> Result<Child> {
