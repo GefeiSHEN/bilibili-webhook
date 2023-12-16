@@ -37,7 +37,7 @@ pub fn update(feed: &Feed) {
                     // 返回错误，说明数据库没有这个内容，所以要更新
                     info!("[{}] 更新了一个新视频：{}", &source.title, &item.title);
                     // 下载新视频
-                    match download(&item.link, feed) {
+                    match download(&link, feed) {
                         Ok(output) => {
                             writer::bilili(&source.title, &item.link);
                             let out = output.wait_with_output().unwrap();
