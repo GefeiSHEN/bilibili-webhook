@@ -6,25 +6,25 @@ use std::{
 use log::error;
 
 pub fn bilili(source: &str, output: &str) {
-    let log_file = format!("config/log/{}.log", source);
-    log::info!("Writing to log file: {}", log_file);
-
-    match create_dir_all("config/log") {
-        Ok(_) => log::info!("Ensured existence of log directory"),
-        Err(e) => log::error!("Failed to create log directory: {:?}", e),
-    };
-
-    match OpenOptions::new().create(true).append(true).open(&log_file) {
-        Ok(mut file) => {
-            if let Err(e) = file.write_all(output.as_bytes()) {
-                log::error!("Failed to write output to log file: {:?}", e);
+    let log_file = format!("config/log/{source}.log");
+    create_dir_all("config/bilili").unwrap_or_else(|error| {
+        error!("{:?}", error);
+    });
+    create_dir_all("config/log").unwrap_or_else(|error| {
+        error!("{:?}", error);
+    });
+    let mut file =
+        OpenOptions::new().create(true).append(true).open(&log_file).unwrap_or_else(|error| {
+            if error.kind() == ErrorKind::NotFound {
+                File::create(&log_file).unwrap_or_else(|error| {
+                    error!("{:?}", error);
+                    panic!();
+                })
+            } else {
+                error!("{:?}", error);
+                panic!();
             }
-            if let Err(e) = file.write_all(b"\n") {
-                log::error!("Failed to write newline to log file: {:?}", e);
-            }
-        }
-        Err(e) => {
-            log::error!("Failed to open log file: {:?}", e);
-        }
-    }
+        });
+    file.write_all(output.as_bytes()).expect("写入失败");
+    file.write_all("\n".as_bytes()).expect("写入失败");
 }
