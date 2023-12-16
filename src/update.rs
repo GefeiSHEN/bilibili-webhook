@@ -76,20 +76,37 @@ fn extract_bilibili_link(description: &str) -> Option<String> {
 }
 
 fn download(url: &str, feed: &Feed) -> Result<Child> {
+    log::info!("Starting download process for URL: {}", url);
+
     let mut cmd = Command::new("yutto");
     let args = feed.option.split(' ');
     for arg in args {
         cmd.arg(arg);
     }
 
-    // 先从本地读取 sessdata
+    let download_dir = format!("downloads/{}", &feed.path);
+    log::info!("Download directory: {}", download_dir);
+
     if let Ok(sessdata) = read_to_string("config/SESSDATA.txt") {
-        cmd.arg("-c").arg(sessdata);
-        // 如果本地不存在，则从系统环境变量获取 sessdata
+        cmd.arg("-c").arg(&sessdata);
     } else if let Some(sessdata) = var_os("SESSDATA") {
+        let sessdata_str = sessdata.to_string_lossy();
+        log::info!("Using SESSDATA from environment: {}", sessdata_str);
         cmd.arg("-c").arg(sessdata);
+    } else {
+        log::warn!("SESSDATA not found in either file or environment");
     }
 
-    let download_dir = format!("downloads/{}", &feed.path);
-    cmd.args(["-d", &download_dir]).arg(url).stdout(Stdio::piped()).spawn()
+    cmd.args(["-d", &download_dir]).arg(url).stdout(Stdio::piped());
+
+    log::info!("Executing download command: {:?}", cmd);
+
+    match cmd.spawn() {
+        Ok(child) => Ok(child),
+        Err(e) => {
+            log::error!("Failed to start download process: {}", e);
+            Err(e)
+        }
+    }
 }
+
