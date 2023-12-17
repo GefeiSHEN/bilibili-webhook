@@ -39,7 +39,7 @@ pub fn update(feed: &Feed) {
                     // 下载新视频
                     match download(&link, feed) {
                         Ok(output) => {
-                            writer::bilili(&source.title, &item.link);
+                            writer::bilili(&source.title, &link);
                             let out = output.wait_with_output().unwrap();
                             let out = String::from_utf8_lossy(&out.stdout);
                             for line in out.split('\n') {
@@ -47,7 +47,7 @@ pub fn update(feed: &Feed) {
                             }
                             info!("\"{}\" 下载成功", &item.title);
                             // 下载成功才在数据库添加内容
-                            Content::insert(&connection, source.id, &item.link, &item.title);
+                            Content::insert(&connection, source.id, &link, &item.title);
                             is_update = true;
                         }
                         Err(error) => {
