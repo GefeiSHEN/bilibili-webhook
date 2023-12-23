@@ -1,6 +1,6 @@
 use std::{thread::sleep, time::Duration};
 
-use log::{error, info, warn};
+use log::{error, info, warn, debug};
 use quick_xml::de::from_str;
 use reqwest::blocking::{self, Response};
 use serde::Deserialize;
