@@ -30,6 +30,7 @@ pub struct Rss {
 }
 
 fn get(url: &str, mut retry: i8) -> Response {
+    debug!("Requesting URL: {}", url);
     blocking::get(url).unwrap_or_else(|error| {
         error!("请求失败，请检查配置和网络!");
         info!("get retry {:?}", retry);
