@@ -1,6 +1,5 @@
-use std::{thread::sleep, time::Duration};
-
-use log::{error, info, warn, debug};
+use std::{error::Error, thread::sleep, time::Duration};
+use log::{error, info, warn};
 use quick_xml::de::from_str;
 use reqwest::blocking::{self, Response};
 use serde::Deserialize;
@@ -29,32 +28,55 @@ pub struct Rss {
     pub channel: Channel,
 }
 
-fn get(url: &str, mut retry: i8) -> Response {
-    info!("Requesting URL: {}", url);
-    blocking::get(url).unwrap_or_else(|error| {
-        error!("请求失败，请检查配置和网络!");
-        info!("get retry {:?}", retry);
-        error!("{:?}", error);
-        if retry == 0 {
-            error!("源 {} 更新失败，暂停更新！", url);
-            panic!()
-        } else {
-            let interval = 15;
-            warn!("{} 秒后进行第 {} 次重试：{}", interval, 6 - retry, url);
-            retry -= 1;
-            sleep(Duration::from_secs(interval));
-            get(url, retry)
+fn get(url: &str, mut retry: i8) -> Result<Response, reqwest::Error> {
+    let response = blocking::get(url);
+    match response {
+        Ok(res) => Ok(res),
+        Err(error) => {
+            error!("Request failed, please check your configuration and network!");
+            info!("Retrying {:?}", retry);
+            error!("{:?}", error);
+            if retry > 0 {
+                let interval = 15;
+                warn!("Retrying in {} seconds, attempt number {}", interval, 6 - retry);
+                sleep(Duration::from_secs(interval));
+                retry -= 1;
+                get(url, retry)
+            } else {
+                error!("Failed to update source {}, giving up this update", url);
+                Err(error)
+            }
         }
-    })
+    }
 }
 
 impl Rss {
     #[must_use]
-    pub fn new(url: &str) -> Self {
+    pub fn new(url: &str) -> Result<Self, Box<dyn Error>> {
         let retry: i8 = 5;
-        let res = get(url, retry);
-        let body = res.text().expect("body 解析错误");
+        let res = match get(url, retry) {
+            Ok(response) => response,
+            Err(e) => {
+                error!("Request failed: {}", e);
+                return Err(e.into());
+            },
+        };
 
-        from_str(&body).expect("xml 解析失败")
+        let body = match res.text() {
+            Ok(text) => text,
+            Err(e) => {
+                error!("Failed to parse response: {}", e);
+                return Err(e.into());
+            },
+        };
+
+        match from_str(&body) {
+            Ok(rss) => Ok(rss),
+            Err(e) => {
+                error!("XML parsing failed: {}", e);
+                error!("Response that failed parsing: {}", body);
+                Err(e.into())
+            },
+        }
     }
 }

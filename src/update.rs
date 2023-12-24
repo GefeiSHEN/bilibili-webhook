@@ -21,52 +21,59 @@ pub fn update(feed: &Feed) {
     loop {
         let url = &feed.url;
 
-        let rss = Rss::new(url);
+        let rss_result = Rss::new(url);
 
-        let channel = &rss.channel;
-        // 订阅源
-        let source = Source::query_where(&connection, url)
-            .unwrap_or_else(|_| Source::insert(&connection, url, &channel.title));
+        match rss_result {
+            Ok(rss) => {
+                let channel = &rss.channel;
+                // 订阅源
+                let source = Source::query_where(&connection, url)
+                    .unwrap_or_else(|_| Source::insert(&connection, url, &channel.title));
 
-        let mut is_update = false;
+                let mut is_update = false;
 
-        // 内容
-        for item in &channel.item {
-            if let Some(link) = extract_bilibili_link(&item.description) {
-                if Content::query_where(&connection, &link).is_err() {
-                    // 返回错误，说明数据库没有这个内容，所以要更新
-                    info!("[{}] 更新了一个新视频：{}", &source.title, &item.title);
-                    // 下载新视频
-                    match download(&link, feed) {
-                        Ok(output) => {
-                            writer::bilili(&source.title, &link);
-                            let out = output.wait_with_output().unwrap();
-                            let out = String::from_utf8_lossy(&out.stdout);
-                            for line in out.split('\n') {
-                                writer::bilili(&source.title, line);
+                // 内容
+                for item in &channel.item {
+                    if let Some(link) = extract_bilibili_link(&item.description) {
+                        if Content::query_where(&connection, &link).is_err() {
+                            // 返回错误，说明数据库没有这个内容，所以要更新
+                            info!("[{}] 更新了一个新视频：{}", &source.title, &item.title);
+                            // 下载新视频
+                            match download(&link, feed) {
+                                Ok(output) => {
+                                    writer::bilili(&source.title, &link);
+                                    let out = output.wait_with_output().unwrap();
+                                    let out = String::from_utf8_lossy(&out.stdout);
+                                    for line in out.split('\n') {
+                                        writer::bilili(&source.title, line);
+                                    }
+                                    info!("\"{}\" 下载成功", &item.title);
+                                    // 下载成功才在数据库添加内容
+                                    Content::insert(&connection, source.id, &link, &item.title);
+                                    is_update = true;
+                                }
+                                Err(error) => {
+                                    log::error!("{}", error);
+                                }
                             }
-                            info!("\"{}\" 下载成功", &item.title);
-                            // 下载成功才在数据库添加内容
-                            Content::insert(&connection, source.id, &link, &item.title);
-                            is_update = true;
-                        }
-                        Err(error) => {
-                            log::error!("{}", error);
                         }
                     }
                 }
+
+                if is_update {
+                    info!("[{}] 已更新！", &source.title);
+                } else {
+                    info!("[{}] 没有更新！", &source.title);
+                }
+
+                // 线程休眠
+                let interval = &feed.interval * 60;
+                std::thread::sleep(std::time::Duration::from_secs(interval));
+                    },
+                    Err(e) => {
+                        // something to be added
+                    }
             }
-        }
-
-        if is_update {
-            info!("[{}] 已更新！", &source.title);
-        } else {
-            info!("[{}] 没有更新！", &source.title);
-        }
-
-        // 线程休眠
-        let interval = &feed.interval * 60;
-        std::thread::sleep(std::time::Duration::from_secs(interval));
     }
 }
 
