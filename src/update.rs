@@ -70,10 +70,12 @@ pub fn update(feed: &Feed) {
                 let interval = &feed.interval * 60;
                 std::thread::sleep(std::time::Duration::from_secs(interval));
                     },
-                    Err(e) => {
-                        // something to be added
-                    }
-            }
+        Err(e) => {
+            // 线程休眠
+            let interval = &feed.interval * 60;
+            std::thread::sleep(std::time::Duration::from_secs(interval));
+        }
+        }
     }
 }
 
